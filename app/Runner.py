@@ -4,7 +4,7 @@ from MyStrategy import MyStrategy
 from RemoteProcessClient import RemoteProcessClient
 from model.Move import Move
 
-
+ 
 class Runner:
     def __init__(self):
         if sys.argv.__len__() == 4:
