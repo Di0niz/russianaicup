@@ -17,3 +17,8 @@ class MyStrategy:
         move.strafe_speed = game.wizard_strafe_speed
         move.turn = game.wizard_max_turn_angle
         move.action = ActionType.MAGIC_MISSILE
+
+
+class Point2D:
+    def __init__(self):
+        pass

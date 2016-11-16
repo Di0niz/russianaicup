@@ -1,0 +1,24 @@
+{
+    "version": "0.1.0",
+    "command": "sh",
+    "args": ["-c"],
+    "isShellCommand": true,
+    "showOutput": "always",
+    "suppressTaskName": true,
+    "tasks": [
+        {
+            "taskName": "local-runner",
+            "args": ["cd localrunner && sh local-runner.sh"],
+            "suppressTaskName": true,
+            "isBuildCommand": true
+        },
+        {
+            "taskName": "Run Strategy",
+            "args": ["cd app && python -u Runner.py"]
+        },
+        {
+            "taskName": "Runner && Strategy",
+            "args": ["cd localrunner && sh local-runner.sh && cd ../app && python -u Runner.py"]
+        }
+    ]
+}
