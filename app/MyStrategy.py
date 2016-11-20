@@ -19,6 +19,10 @@ class StrategyState:
     MOVE_BACK = 7
 
 
+   
+
+
+
 class MyStrategy:
     def move(self, me, world, game, move):
 
@@ -42,50 +46,66 @@ class MyStrategy:
 
         state = self.current_state(StrategyState.MOVE)
 
+        self.make_action(move, state)
+
+        print(state)
 
     def current_state (self, state):
+        """Определяем текущее состояние по набору состояний"""
         prev_state = None
+
+        print(state)
+        rules = self.get_rules()
+        while(state!=prev_state):
+
+            for rule in rules:
+                if (rule[0] == state):
+                    # проверяем сработало правило или нет
+                    if rule[3] != None:
+                        result = rule[3](*rule[4])
+                    else:
+                        result = True
+
+                    if rule[2] == result:
+                        state = rule[1]
+                        print (state)
+                        
+            prev_state = state 
+
+        return state
+
+    def make_action(self, move, state):
+        """Выполняем некоторое действие """
+
+        move.speed = 3
+        
+        pass
+
+    def get_rules(self):
 
         near_target = self.get_near_target()
 
-        while(prev_state != state):
+        # проверяем уровень жизни
+        check_hp = lambda me: me.life < me.max_life * 0.2
+        # проверяем возможность использовать заклинание
+        check_cast_range = lambda me, target: abs(me.get_angle_to_unit(near_target)) < me.cast_range
 
-            if state == StrategyState.MOVE:
-                if (self.me.life < self.me.max_life * 0.2):
-                    state = StrategyState.LOW_HP
-                elif (near_target != None):
-                    state = StrategyState.VISIBLE_ENEMY
-                
-            if state == StrategyState.LOW_HP:
-                state = StrategyState.MOVE_BACK
-                
-                
-            if state == StrategyState.VISIBLE_ENEMY:
-                dist = self.me.get_distance_to_unit(near_target)
+        # описание таблицы переходов
 
-                if (self.me.cast_range >= dist):
-                    state = StrategyState.CAN_CAST
-                                    
-            if state == StrategyState.CAN_CAST:
-                
-                angle = self.me.get_angle_to_unit(near_target)
-                if (abs(angle) < self.me.cast_range):
-                    state = StrategyState.TURN_TO_TARGET
-                else:
-                    state = StrategyState.ATTACK_TARGET
-               
-            if state == StrategyState.TURN_TO_TARGET:
-                pass
-                
-            if state == StrategyState.ATTACK_TARGET:
-                pass
-                
-            if state == StrategyState.MOVE_BACK:
-                pass
-
-            prev_state = state
-
-        return state
+        states = [
+        (StrategyState.MOVE,             StrategyState.LOW_HP,             False,       check_hp, [self.me]),
+        (StrategyState.MOVE,             StrategyState.VISIBLE_ENEMY,      True,        check_hp, [self.me]),
+        (StrategyState.LOW_HP,           StrategyState.MOVE_BACK,          True,        None, None),
+        (StrategyState.VISIBLE_ENEMY,    StrategyState.CAN_CAST,           True,        check_cast_range, [self.me, near_target] ),
+        (StrategyState.CAN_CAST,         StrategyState.TURN_TO_TARGET,     False,       check_cast_range, [self.me, near_target] ),
+        (StrategyState.CAN_CAST,         StrategyState.ATTACK_TARGET,      True,        check_cast_range, [self.me, near_target] ),
+        (StrategyState.TURN_TO_TARGET,   None,                             True,        check_cast_range, [self.me, near_target] ),
+        (StrategyState.ATTACK_TARGET,    None,                             True,        check_cast_range, [self.me, near_target] ),
+        (StrategyState.MOVE_BACK,        None,                             True,        check_cast_range, [self.me, near_target] ),
+        
+        ]        
+    
+        return states
 
 
     def go_to(self, unit):
