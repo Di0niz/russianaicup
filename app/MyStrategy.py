@@ -9,14 +9,19 @@ from model.Faction import Faction
 
 import math
 
+class StategyProblem:
+    SAFE = 10
+
 class StrategyState:
     MOVE = 10
     LOW_HP = 20
     VISIBLE_ENEMY = 30
+    VISIBLE_BONUS = 31
     CAN_CAST = 40
     TURN_TO_TARGET = 50
     ATTACK_TARGET = 60
     MOVE_BACK = 70
+    MOVE_BONUS = 71
     MOVE_TO_WAYPOINT = 80
 
     @staticmethod
@@ -26,10 +31,12 @@ class StrategyState:
         StrategyState.MOVE             : ("MOVE", "Шаг вперед"),
         StrategyState.LOW_HP           : ("LOW_HP", "Мало жизни"),
         StrategyState.VISIBLE_ENEMY    : ("VISIBLE_ENEMY", "Видим врага"),
+        StrategyState.VISIBLE_BONUS    : ("VISIBLE_BONUS", "Видим бонус"),
         StrategyState.CAN_CAST         : ("CAN_CAST", "Могу колдавать"),
         StrategyState.TURN_TO_TARGET   : ("TURN_TO_TARGET", "Поворачиваемся к врагу"),
         StrategyState.ATTACK_TARGET    : ("ATTACK_TARGET", "Аттакуем цель"),
         StrategyState.MOVE_BACK        : ("MOVE_BACK", "Двигаемся назад"),
+        StrategyState.MOVE_BONUS       : ("MOVE_BONUS", "Двигаемся к бонусу"),
         StrategyState.MOVE_TO_WAYPOINT : ("MOVE_TO_WAYPOINT", "Двигаемся к башне"),
         }
 
@@ -44,6 +51,9 @@ class StrategyState:
 class MyStrategy:
     
     WAYPOINT_RADIUS = 100.0
+    # использует для ограничения поиска цели по бонусам 
+    TARGET_RADIUS = 600.0
+
     LOW_HP_FACTOR = 0.25
 
 
@@ -60,13 +70,15 @@ class MyStrategy:
         self.world = world
         self.game = game
 
-        state = self.current_state(StrategyState.MOVE)
+        rule = self.current_rule(StrategyState.MOVE, StategyProblem.SAFE)
+        state = rule[1]
 
-        self.make_action(move, state)
+        self.make_action(move, rule)
 
-    def current_state (self, state):
-        """Определяем текущее состояние по набору состояний"""
+    def current_rule(self, state, problem):
+        """Определяем правило, которое работало по набору состояний"""
         prev_state = None
+        current_rule = None
 
         rules = self.get_rules()
         while(state!=prev_state):
@@ -81,12 +93,14 @@ class MyStrategy:
 
                     if rule[2] == result:
                         state = rule[1]
+                        current_rule = rule
                         
             prev_state = state 
 
-        return state
+        return current_rule
 
-    def make_action(self, move, state):
+    def make_action(self, move, rule):
+        state = rule[1]
         StrategyState.print_state(state)        
 #            move.speed = self.game.wizard_forward_speed
 #            move.strafe_speed = self.game.wizard_strafe_speed
@@ -98,13 +112,20 @@ class MyStrategy:
         """Выполняем некоторое действие """
 
         if StrategyState.MOVE_TO_WAYPOINT == state:
-            next_viewpoint = self.get_next_waypoint()
-            map_size = self.game.map_size
-            angle = self.me.get_angle_to_unit(next_viewpoint)
-            move.turn = angle
-            if( abs(angle) < self.game.staff_sector/4.0):
-                move.speed = self.game.wizard_forward_speed
+#            next_viewpoint = self.get_next_waypoint()
+#            map_size = self.game.map_size
+#            angle = self.me.get_angle_to_unit(next_viewpoint)
+#            move.turn = angle
+#            if abs(angle) < self.game.staff_sector/4.0:
+#                move.speed = self.game.wizard_forward_speed
+            pass
+        elif StrategyState.MOVE_BONUS == state:
+            next_bonus = rule[4][0]
 
+            angle = self.me.get_angle_to_unit(next_bonus)
+            move.turn = angle
+            if abs(angle) < self.game.staff_sector/4.0:
+                move.speed = self.game.wizard_forward_speed
         else:
             print ("movements not found")
         pass
@@ -112,6 +133,7 @@ class MyStrategy:
     def get_rules(self):
 
         near_target = self.get_near_target()
+        near_bonus = self.get_near_bonus()
 
         # проверяем уровень жизни
         check_hp = lambda me: me.life < me.max_life * 0.2
@@ -125,10 +147,17 @@ class MyStrategy:
         # проверяем возможность использовать заклинание
         check_cast_angle = lambda me, target: abs(me.get_angle_to_unit(near_target)) < me.cast_range
 
+        # проверяем есть ли цель    
+        check_target = lambda target: target != None
+
         # описание таблицы переходов
 
         states = [
-        (StrategyState.MOVE,             StrategyState.LOW_HP,             True,        check_hp, [self.me]),
+        (StrategyState.MOVE,             StrategyState.VISIBLE_BONUS,      True,        check_target, [near_bonus]),
+        (StrategyState.MOVE,             StrategyState.MOVE_BONUS,         True,        None, [near_bonus]),
+
+
+
         (StrategyState.MOVE,             StrategyState.VISIBLE_ENEMY,      True,        check_cast_range, [self.me, near_target]),
         (StrategyState.MOVE,             StrategyState.MOVE_TO_WAYPOINT,   True,        None, None),
         (StrategyState.LOW_HP,           StrategyState.MOVE_BACK,          True,        None, None),
@@ -172,17 +201,34 @@ class MyStrategy:
         return target
 
 
+    def get_near_bonus(self):
+        """ Определяем ближащий бонус и идем к нему"""
+
+        min_dist = None
+        near_target = None
+        for target in self.world.bonuses:
+            if (target.faction == Faction.NEUTRAL or target.faction == self.me.faction):
+                continue
+
+            distance = self.me.get_distance_to_unit(target)
+
+            if (min_dist is None or distance < min_dist):
+                min_dist = distance
+                near_target = target
+        
+        return target
+
     def lane(self):
         map_size = self.game.map_size
         # LaneType.Middle
         l = [
         Point2D(80.0, map_size - 100.0),
         Point2D(120.0, map_size - 400.0),
-        Point2D(200.0, map_size - 800.0),
-        Point2D(200.0, map_size * 0.75),
-        Point2D(200.0, map_size * 0.5),
-        Point2D(200.0, map_size * 0.25),
-        Point2D(200.0, 200.0),
+        Point2D(180.0, map_size - 800.0),
+        Point2D(230.0, map_size * 0.75),
+        Point2D(210.0, map_size * 0.5),
+        Point2D(210.0, map_size * 0.25),
+        Point2D(230.0, 200.0),
         Point2D(map_size * 0.25, 200.0),
         Point2D(map_size * 0.5, 200.0),
         Point2D(map_size * 0.75, 200.0),

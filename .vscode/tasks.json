@@ -16,7 +16,7 @@
         },
         {
             "taskName": "Runner && Strategy",
-            "args": ["cd localrunner && sh local-runner.sh && sleep 2 && cd ../app && python -u Runner.py"],
+            "args": ["cd localrunner && sh local-runner.sh && sleep 3 && cd ../app && python -u Runner.py"],
             "suppressTaskName": true,
             "isBuildCommand": true
         }
