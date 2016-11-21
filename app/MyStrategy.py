@@ -155,6 +155,7 @@ class MyStrategy:
         states = [
         (StrategyState.MOVE,             StrategyState.VISIBLE_BONUS,      True,        check_target, [near_bonus]),
         (StrategyState.MOVE,             StrategyState.MOVE_BONUS,         True,        None, [near_bonus]),
+        (StrategyState.MOVE,             StrategyState.FIND_MINIONS,       True,        None, [near_bonus]),
 
 
 
@@ -199,6 +200,17 @@ class MyStrategy:
                 near_target = target
         
         return target
+
+
+
+    def get_near_minions(self):
+
+        for m in self.world.minions:
+            
+            # если minion мой и рядом находится
+
+            
+        pass
 
 
     def get_near_bonus(self):
