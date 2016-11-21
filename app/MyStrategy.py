@@ -209,8 +209,7 @@ class MyStrategy:
             
             # если minion мой и рядом находится
 
-            
-        pass
+
 
 
     def get_near_bonus(self):
